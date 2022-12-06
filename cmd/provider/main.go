@@ -36,10 +36,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/provider-template/apis"
-	"github.com/crossplane/provider-template/apis/v1alpha1"
-	template "github.com/crossplane/provider-template/internal/controller"
-	"github.com/crossplane/provider-template/internal/controller/features"
+	"github.com/munditrade/provider-secret/apis"
+	"github.com/munditrade/provider-secret/apis/v1alpha1"
+	template "github.com/munditrade/provider-secret/internal/controller"
+	"github.com/munditrade/provider-secret/internal/controller/features"
 )
 
 func main() {

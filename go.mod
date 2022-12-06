@@ -1,6 +1,6 @@
-module github.com/crossplane/provider-template
+module github.com/munditrade/provider-secret
 
-go 1.19
+go 1.18
 
 require (
 	github.com/crossplane/crossplane-runtime v0.18.0
@@ -118,4 +118,5 @@ require (
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
+
 )
