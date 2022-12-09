@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"github.com/munditrade/provider-secret/apis/secret/v1alpha1"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,7 +38,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/munditrade/provider-secret/apis"
-	"github.com/munditrade/provider-secret/apis/v1alpha1"
 	template "github.com/munditrade/provider-secret/internal/controller"
 	"github.com/munditrade/provider-secret/internal/controller/features"
 )
