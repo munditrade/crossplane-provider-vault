@@ -27,7 +27,8 @@ import (
 
 // EngineParameters are the configurable fields of a Engine.
 type EngineParameters struct {
-	ConfigurableField string `json:"configurableField"`
+	Storage string            `json:"storage"`
+	Options map[string]string `json:"options"`
 }
 
 // EngineObservation are the observable fields of a Engine.

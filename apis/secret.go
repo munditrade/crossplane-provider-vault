@@ -18,16 +18,16 @@ limitations under the License.
 package apis
 
 import (
+	secretv1alpha1 "github.com/munditrade/provider-secret/apis/secret/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	templatev1alpha1 "github.com/munditrade/provider-secret/apis/v1alpha1"
 	vaultv1alpha1 "github.com/munditrade/provider-secret/apis/vault/v1alpha1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
-		templatev1alpha1.SchemeBuilder.AddToScheme,
+		secretv1alpha1.SchemeBuilder.AddToScheme,
 		vaultv1alpha1.SchemeBuilder.AddToScheme,
 	)
 }

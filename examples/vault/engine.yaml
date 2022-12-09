@@ -1,0 +1,19 @@
+---
+apiVersion: secret.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: VaultConnection
+    connectionSecretRef:
+      namespace: default
+      name: secret-conn
+---
+apiVersion: vault.secret.crossplane.io/v1alpha1
+kind: Engine
+metadata:
+  name: example
+spec:
+  forProvider:
+    storage: "kv"

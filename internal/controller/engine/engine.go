@@ -19,8 +19,10 @@ package engine
 import (
 	"context"
 	"fmt"
-
+	v1alpha12 "github.com/munditrade/provider-secret/apis/secret/v1alpha1"
+	"github.com/munditrade/provider-secret/internal/common"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,67 +33,58 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	apisv1alpha1 "github.com/munditrade/provider-secret/apis/v1alpha1"
 	"github.com/munditrade/provider-secret/apis/vault/v1alpha1"
 	"github.com/munditrade/provider-secret/internal/controller/features"
 )
 
 const (
-	errNotEngine    = "managed resource is not a Engine custom resource"
-	errTrackPCUsage = "cannot track ProviderConfig usage"
-	errGetPC        = "cannot get ProviderConfig"
-	errGetCreds     = "cannot get credentials"
+	errNotEngine          = "managed resource is not a Engine custom resource"
+	errCreatingEngine     = "creation engine error"
+	errTrackPCUsage       = "cannot track ProviderConfig usage"
+	errGetPC              = "cannot get ProviderConfig"
+	errErrorGettingEngine = "cannot get path given a engine"
+	errNoSecretRef        = "ProviderConfig does not reference a credentials Secret"
+	errGetSecret          = "cannot get credentials Secret"
 
 	errNewClient = "cannot create new Service"
 )
 
-// A NoOpService does nothing.
-type NoOpService struct{}
-
-var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
-)
-
 // Setup adds a controller that reconciles Engine managed resources.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.EngineGroupKind)
+func Setup(getNewSecretManager common.GetNewSecretManager) func(mgr ctrl.Manager, o controller.Options) error {
+	return func(mgr ctrl.Manager, o controller.Options) error {
+		name := managed.ControllerName(v1alpha1.EngineGroupKind)
 
-	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
-	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), apisv1alpha1.StoreConfigGroupVersionKind))
+		cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
+		if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
+			cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), v1alpha12.StoreConfigGroupVersionKind))
+		}
+
+		r := managed.NewReconciler(mgr,
+			resource.ManagedKind(v1alpha1.EngineGroupVersionKind),
+			managed.WithExternalConnecter(&connector{
+				kube:             mgr.GetClient(),
+				usage:            resource.NewProviderConfigUsageTracker(mgr.GetClient(), &v1alpha12.ProviderConfigUsage{}),
+				newSecretManager: getNewSecretManager}),
+			managed.WithLogger(o.Logger.WithValues("controller", name)),
+			managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			managed.WithConnectionPublishers(cps...))
+
+		return ctrl.NewControllerManagedBy(mgr).
+			Named(name).
+			WithOptions(o.ForControllerRuntime()).
+			For(&v1alpha1.Engine{}).
+			Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 	}
-
-	r := managed.NewReconciler(mgr,
-		resource.ManagedKind(v1alpha1.EngineGroupVersionKind),
-		managed.WithExternalConnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newNoOpService}),
-		managed.WithLogger(o.Logger.WithValues("controller", name)),
-		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		managed.WithConnectionPublishers(cps...))
-
-	return ctrl.NewControllerManagedBy(mgr).
-		Named(name).
-		WithOptions(o.ForControllerRuntime()).
-		For(&v1alpha1.Engine{}).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube         client.Client
-	usage        resource.Tracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	kube             client.Client
+	usage            resource.Tracker
+	newSecretManager func(props map[string][]byte) (common.SecretManager, error)
 }
 
-// Connect typically produces an ExternalClient by:
-// 1. Tracking that the managed resource is using a ProviderConfig.
-// 2. Getting the managed resource's ProviderConfig.
-// 3. Getting the credentials specified by the ProviderConfig.
-// 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
 	cr, ok := mg.(*v1alpha1.Engine)
 	if !ok {
@@ -102,18 +95,26 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	pc := &apisv1alpha1.ProviderConfig{}
+	pc := &v1alpha12.ProviderConfig{}
 	if err := c.kube.Get(ctx, types.NamespacedName{Name: cr.GetProviderConfigReference().Name}, pc); err != nil {
 		return nil, errors.Wrap(err, errGetPC)
 	}
 
-	cd := pc.Spec.Credentials
-	data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
-	if err != nil {
-		return nil, errors.Wrap(err, errGetCreds)
+	// We don't need to check the credentials source because we currently only
+	// support one source (PostgreSQLConnectionSecret), which is required and
+	// enforced by the ProviderConfig schema.
+	ref := pc.Spec.Credentials.ConnectionSecretRef
+	if ref == nil {
+		return nil, errors.New(errNoSecretRef)
 	}
 
-	svc, err := c.newServiceFn(data)
+	s := &corev1.Secret{}
+	if err := c.kube.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, s); err != nil {
+		return nil, errors.Wrap(err, errGetSecret)
+	}
+
+	svc, err := c.newSecretManager(s.Data)
+
 	if err != nil {
 		return nil, errors.Wrap(err, errNewClient)
 	}
@@ -126,13 +127,21 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 type external struct {
 	// A 'client' used to connect to the external resource API. In practice this
 	// would be something like an AWS SDK client.
-	service interface{}
+	service common.SecretManager
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
 	cr, ok := mg.(*v1alpha1.Engine)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotEngine)
+	}
+
+	engine := cr.ObjectMeta.Name
+
+	exist, err := c.service.ExistEngine(ctx, engine)
+
+	if err != nil {
+		return managed.ExternalObservation{}, errors.New(errErrorGettingEngine)
 	}
 
 	// These fmt statements should be removed in the real implementation.
@@ -142,7 +151,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		// Return false when the external resource does not exist. This lets
 		// the managed resource reconciler know that it needs to call Create to
 		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: true,
+		ResourceExists: exist,
 
 		// Return false when the external resource exists, but it not up to date
 		// with the desired managed resource state. This lets the managed
@@ -163,9 +172,17 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	fmt.Printf("Creating: %+v", cr)
 
+	engine := cr.ObjectMeta.Name
+	storage := cr.Spec.ForProvider.Storage
+	opts := cr.Spec.ForProvider.Options
+
+	err := c.service.CreateEngine(ctx, engine, storage, opts)
+
+	if err != nil {
+		return managed.ExternalCreation{}, errors.New(errCreatingEngine)
+	}
+
 	return managed.ExternalCreation{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
 }
@@ -179,8 +196,6 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 	fmt.Printf("Updating: %+v", cr)
 
 	return managed.ExternalUpdate{
-		// Optionally return any details that may be required to connect to the
-		// external resource. These will be stored as the connection secret.
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
 }
@@ -191,7 +206,14 @@ func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
 		return errors.New(errNotEngine)
 	}
 
-	fmt.Printf("Deleting: %+v", cr)
+	engine := cr.ObjectMeta.Name
+
+	exist, _ := c.service.ExistEngine(ctx, engine)
+
+	if exist {
+		fmt.Printf("Deleting: %+v", cr)
+		return c.service.DeleteEngine(ctx, engine)
+	}
 
 	return nil
 }

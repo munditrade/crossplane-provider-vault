@@ -18,6 +18,7 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/munditrade/provider-secret/internal/clients/vault"
 	"github.com/munditrade/provider-secret/internal/controller/engine"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -28,7 +29,7 @@ import (
 // the supplied manager.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
-		engine.Setup,
+		engine.Setup(vault.New),
 		config.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
