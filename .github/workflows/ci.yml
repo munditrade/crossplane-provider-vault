@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - master
       - release-*
   pull_request: {}
   workflow_dispatch: {}
@@ -306,5 +306,5 @@ jobs:
           password: ${{ secrets.GCR_CREDENTIAL_INFRA_SERVICES }}
 
       - name: Publish Artifacts to S3 and Docker Hub
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/master'
         run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
