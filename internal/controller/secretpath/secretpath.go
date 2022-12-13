@@ -3,6 +3,7 @@ package secretpath
 import (
 	"context"
 	"fmt"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -133,15 +134,13 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	if getSecretsErr != nil {
 		if getSecretsErr.Error() == common.ErrNotFoundPath {
-			return managed.ExternalObservation{
-				ResourceExists:    false,
-				ResourceUpToDate:  true,
-				ConnectionDetails: managed.ConnectionDetails{},
-			}, nil
+			return managed.ExternalObservation{ResourceExists: false}, nil
 		}
 
 		return managed.ExternalObservation{}, errors.New(errDataNotFoundInPath)
 	}
+
+	cr.SetConditions(xpv1.Available())
 
 	return managed.ExternalObservation{
 		ResourceExists:    true,

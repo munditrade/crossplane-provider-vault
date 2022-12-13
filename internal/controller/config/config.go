@@ -23,7 +23,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/providerconfig"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -38,14 +37,11 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		UsageList: v1alpha12.ProviderConfigUsageListGroupVersionKind,
 	}
 
-	r := providerconfig.NewReconciler(mgr, of,
-		providerconfig.WithLogger(o.Logger.WithValues("secret-manager-controller", name)),
-		providerconfig.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
-
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		WithOptions(o.ForControllerRuntime()).
 		For(&v1alpha12.ProviderConfig{}).
 		Watches(&source.Kind{Type: &v1alpha12.ProviderConfigUsage{}}, &resource.EnqueueRequestForProviderConfig{}).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(providerconfig.NewReconciler(mgr, of,
+			providerconfig.WithLogger(o.Logger.WithValues("controller", name)),
+			providerconfig.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
 }

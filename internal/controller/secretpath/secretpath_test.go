@@ -61,11 +61,7 @@ func TestSecretPath_Observe(t *testing.T) {
 				},
 			},
 			want: want{
-				o: managed.ExternalObservation{
-					ResourceExists:    false,
-					ResourceUpToDate:  true,
-					ConnectionDetails: managed.ConnectionDetails{},
-				},
+				o:   managed.ExternalObservation{ResourceExists: false},
 				err: nil,
 			},
 			prepareMock: func(m *common.MockSecretManager, reader *common.MockK8sReader) {

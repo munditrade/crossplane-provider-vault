@@ -35,7 +35,8 @@ echo_error(){
 
 # The name of your provider. Many provider Makefiles override this value.
 PACKAGE_NAME="provider-secret"
-
+SECRET_TOKEN="root"
+VAULT_PORT=8200
 
 # ------------------------------
 projectdir="$( cd "$( dirname "${BASH_SOURCE[0]}")"/../.. && pwd )"
@@ -153,11 +154,21 @@ echo_step "--- INTEGRATION TESTS ---"
 echo_step "installing ${PROJECT_NAME} into \"${CROSSPLANE_NAMESPACE}\" namespace"
 
 INSTALL_YAML="$( cat <<EOF
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: debug-config
+spec:
+  args:
+  - --debug
+---
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: "${PACKAGE_NAME}"
 spec:
+  controllerConfigRef:
+    name: debug-config
   package: "${PACKAGE_NAME}"
   packagePullPolicy: Never
 EOF
@@ -165,23 +176,76 @@ EOF
 
 echo "${INSTALL_YAML}" | "${KUBECTL}" apply -f -
 
+echo_step "waiting for provider to be installed"
+"${KUBECTL}" wait "provider.pkg.crossplane.io/${PACKAGE_NAME}" --for=condition=healthy --timeout=180s
+
 # printing the cache dir contents can be useful for troubleshooting failures
 echo_step "check kind node cache dir contents"
 docker exec "${K8S_CLUSTER}-control-plane" ls -la /cache
 
 echo_step "waiting for provider to be installed"
-
 kubectl wait "provider.pkg.crossplane.io/${PACKAGE_NAME}" --for=condition=healthy --timeout=180s
+
+echo_step "Installing vault"
+
+"${HELM3}" repo add hashicorp https://helm.releases.hashicorp.com
+
+"${HELM3}" install vault hashicorp/vault \
+    --version 0.23.0 \
+    --set server.dev.enabled=true \
+    --set server.dev.devRootToken="${SECRET_TOKEN}" \
+    --set server.service.port=${VAULT_PORT} \
+    --wait
+
+echo_step "creating secrets vault connection"
+# create ProviderConfig
+"${KUBECTL}" create secret generic secret-conn \
+     --from-literal=host="http://vault.default.svc.cluster.local" \
+     --from-literal=port=${VAULT_PORT}  \
+     --from-literal=token="${SECRET_TOKEN}"
+
+
+echo_step "creating ProviderConfig"
+PROVIDER_CONFIG_YAML="$( cat <<EOF
+apiVersion: secret.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: VaultConnection
+    connectionSecretRef:
+      namespace: default
+      name: secret-conn
+EOF
+)"
+
+echo "${PROVIDER_CONFIG_YAML}" | "${KUBECTL}" apply -f -
+
+echo_step "creating Vault Secret Path resources"
+"${KUBECTL}" apply -f ${projectdir}/examples/vault/engine.yaml
+"${KUBECTL}" apply -f ${projectdir}/examples/vault/secret_path.yaml
+
+echo_info "check if is ready"
+"${KUBECTL}" wait --timeout 2m --for=condition=ready -f ${projectdir}/examples/vault/engine.yaml
+echo_step_completed
+
+echo_info "check if is ready"
+"${KUBECTL}" wait --timeout 2m --for=condition=ready -f ${projectdir}/examples/vault/secret_path.yaml
+echo_step_completed
 
 echo_step "uninstalling ${PROJECT_NAME}"
 
+"${KUBECTL}" delete -f ${projectdir}/examples/vault/secret_path.yaml
+"${KUBECTL}" delete -f ${projectdir}/examples/vault/engine.yaml
+echo "${PROVIDER_CONFIG_YAML}" | "${KUBECTL}" delete -f -
 echo "${INSTALL_YAML}" | "${KUBECTL}" delete -f -
 
 # check pods deleted
 timeout=60
 current=0
 step=3
-while [[ $(kubectl get providerrevision.pkg.crossplane.io -o name | wc -l) != "0" ]]; do
+while [[ $(kubectl get providerrevision.pkg.crossplane.io -o name | wc -l | sed -e 's/^[[:space:]]*//') != "0" ]]; do
   echo "waiting for provider to be deleted for another $step seconds"
   current=$current+$step
   if ! [[ $timeout > $current ]]; then

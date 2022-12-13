@@ -11,4 +11,4 @@ metadata:
 
 spec:
   controller:
-    image: DOCKER_REGISTRY/provider-template-controller:VERSION
+    image: DOCKER_REGISTRY/provider-secret-controller:VERSION
