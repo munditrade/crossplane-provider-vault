@@ -14,5 +14,6 @@ $ kubectl create secret generic secret-conn \
 1. Install vault
 
 ```
+$ helm repo add hashicorp https://helm.releases.hashicorp.com
 $ helm install vault hashicorp/vault
 ```
