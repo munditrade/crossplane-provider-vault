@@ -5,6 +5,7 @@ import (
 	"fmt"
 	vault "github.com/hashicorp/vault/api"
 	"github.com/munditrade/provider-secret/internal/common"
+	"github.com/pkg/errors"
 	"log"
 )
 
@@ -18,6 +19,14 @@ func New(props map[string][]byte) (common.SecretManager, error) {
 
 type VaultSecretManager struct {
 	client *vault.Client
+}
+
+func getVersion(options map[string]string) string {
+	if v, ok := options["version"]; !ok {
+		return "2"
+	} else {
+		return v
+	}
 }
 
 func NewVaultSecretManager(host, port, token string) (*VaultSecretManager, error) {
@@ -39,9 +48,16 @@ func NewVaultSecretManager(host, port, token string) (*VaultSecretManager, error
 	return &VaultSecretManager{client: client}, nil
 }
 
-func (m *VaultSecretManager) Put(ctx context.Context, engine string, secretPath string, data map[string]interface{}) error {
-	_, err := m.client.KVv2(engine).Put(ctx, secretPath, data)
-	return err
+func (m *VaultSecretManager) Put(ctx context.Context, engine string, secretPath string, data map[string]interface{}, options map[string]string) error {
+	v := getVersion(options)
+
+	if v == "1" {
+		err := m.client.KVv1(engine).Put(ctx, secretPath, data)
+		return err
+	} else {
+		_, err := m.client.KVv2(engine).Put(ctx, secretPath, data)
+		return err
+	}
 }
 
 func (m *VaultSecretManager) CreateEngine(ctx context.Context, engine string, engineType string, options map[string]string) error {
@@ -59,4 +75,56 @@ func (m *VaultSecretManager) ExistEngine(ctx context.Context, engine string) (bo
 
 func (m *VaultSecretManager) DeleteEngine(ctx context.Context, engine string) error {
 	return m.client.Sys().Unmount(engine)
+}
+
+func (m *VaultSecretManager) GetSecrets(ctx context.Context, engine string, secretPath string, options map[string]string) (map[string]interface{}, error) {
+	v := getVersion(options)
+
+	if v == "1" {
+		secret, err := m.client.KVv1(engine).Get(ctx, secretPath)
+
+		if err != nil {
+			if errors.Is(err, vault.ErrSecretNotFound) {
+				return nil, errors.New(common.ErrNotFoundPath)
+			}
+
+			return nil, err
+		}
+
+		return secret.Data, err
+	} else {
+		secret, err := m.client.KVv2(engine).Get(ctx, secretPath)
+
+		if err != nil {
+			if errors.Is(err, vault.ErrSecretNotFound) {
+				return nil, errors.New(common.ErrNotFoundPath)
+			}
+
+			return nil, err
+		}
+
+		return secret.Data, err
+	}
+}
+
+func (m *VaultSecretManager) DeletePath(ctx context.Context, engine string, secretPath string, options map[string]string) error {
+	v := getVersion(options)
+
+	if v == "1" {
+		err := m.client.KVv1(engine).Delete(ctx, secretPath)
+
+		if errors.Is(err, vault.ErrSecretNotFound) {
+			return errors.New(common.ErrNotFoundPath)
+		}
+
+		return err
+	} else {
+		err := m.client.KVv2(engine).Delete(ctx, secretPath)
+
+		if errors.Is(err, vault.ErrSecretNotFound) {
+			return errors.New(common.ErrNotFoundPath)
+		}
+
+		return err
+	}
 }

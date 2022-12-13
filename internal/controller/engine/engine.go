@@ -34,7 +34,7 @@ const (
 )
 
 // Setup adds a controller that reconciles Engine managed resources.
-func Setup(getNewSecretManager common.GetNewSecretManager) func(mgr ctrl.Manager, o controller.Options) error {
+func Setup(getNewSecretManager common.GetNewSecretManager, object client.Object) func(mgr ctrl.Manager, o controller.Options) error {
 	return func(mgr ctrl.Manager, o controller.Options) error {
 		name := managed.ControllerName(v1alpha1.EngineGroupKind)
 
@@ -56,7 +56,7 @@ func Setup(getNewSecretManager common.GetNewSecretManager) func(mgr ctrl.Manager
 		return ctrl.NewControllerManagedBy(mgr).
 			Named(name).
 			WithOptions(o.ForControllerRuntime()).
-			For(&v1alpha1.Engine{}).
+			For(object).
 			Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 	}
 }
@@ -103,8 +103,6 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	return &external{service: svc}, nil
 }
 
-// An ExternalClient observes, then either creates, updates, or deletes an
-// external resource to ensure it reflects the managed resource's desired state.
 type external struct {
 	service common.SecretManager
 }
@@ -127,18 +125,8 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	fmt.Printf("Observing: %+v", cr)
 
 	return managed.ExternalObservation{
-		// Return false when the external resource does not exist. This lets
-		// the managed resource reconciler know that it needs to call Create to
-		// (re)create the resource, or that it has successfully been deleted.
-		ResourceExists: exist,
-
-		// Return false when the external resource exists, but it not up to date
-		// with the desired managed resource state. This lets the managed
-		// resource reconciler know that it needs to call Update.
-		ResourceUpToDate: true,
-
-		// Return any details that may be required to connect to the external
-		// resource. These will be stored as the connection secret.
+		ResourceExists:    exist,
+		ResourceUpToDate:  true,
 		ConnectionDetails: managed.ConnectionDetails{},
 	}, nil
 }
