@@ -3,7 +3,7 @@
 PROJECT_NAME := provider-secret
 PROJECT_REPO := github.com/munditrade/$(PROJECT_NAME)
 
-PLATFORMS ?= linux_amd64
+PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk
 
 # Setup Output
@@ -21,7 +21,6 @@ GO111MODULE = on
 # kind-related versions
 KIND_VERSION ?= v0.12.0
 KIND_NODE_IMAGE_TAG ?= v1.23.4
-
 # Setup Kubernetes tools
 -include build/makelib/k8s_tools.mk
 
