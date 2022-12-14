@@ -11,6 +11,6 @@ metadata:
 
 spec:
   controller:
-    image: DOCKER_REGISTRY/provider-secret-controller-amd64:VERSION
+    image: DOCKER_REGISTRY/provider-secret-controller:VERSION
   packagePullSecrets:
     - name: gcp-gcs-creds
