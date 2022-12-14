@@ -300,4 +300,7 @@ jobs:
 
       - name: Publish Artifacts
         if: github.ref == 'refs/heads/master'
-        run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
+        run: make -j2 publish
+        env:
+          BRANCH_NAME: master
+          CHANNEL: master
