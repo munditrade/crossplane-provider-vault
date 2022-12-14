@@ -12,3 +12,5 @@ metadata:
 spec:
   controller:
     image: gcr.io/prj-mundi-infra-services/provider-secret-controller:v0.0.0-150.g07b3386
+  packagePullSecrets:
+    - name: gcp-gcs-creds
