@@ -81,7 +81,8 @@ CACHE_TAG := $(shell date -u +"$(CACHE_DATE_FORMAT)")
 
 REGISTRIES ?= $(DOCKER_REGISTRY)
 IMAGE_ARCHS := $(subst linux_,,$(filter linux_%,$(PLATFORMS)))
-IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLATFORMS))))
+#IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLATFORMS))))
+IMAGE_PLATFORMS := linux/amd64
 
 # if set to 1 docker image caching will not be used.
 CACHEBUST ?= 0
