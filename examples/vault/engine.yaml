@@ -1,19 +1,9 @@
----
-apiVersion: secret.crossplane.io/v1alpha1
-kind: ProviderConfig
-metadata:
-  name: default
-spec:
-  credentials:
-    source: VaultConnection
-    connectionSecretRef:
-      namespace: default
-      name: secret-conn
----
 apiVersion: vault.secret.crossplane.io/v1alpha1
 kind: Engine
 metadata:
-  name: example
+  name: backend-monorepo-v1
 spec:
   forProvider:
     storage: "kv"
+    options:
+      version: "1"

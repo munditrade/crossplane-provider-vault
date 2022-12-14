@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	v1alpha12 "github.com/munditrade/provider-secret/apis/secret/v1alpha1"
 	"github.com/munditrade/provider-secret/internal/common"
 	"github.com/pkg/errors"
@@ -123,6 +124,10 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	// These fmt statements should be removed in the real implementation.
 	fmt.Printf("Observing: %+v", cr)
+
+	if exist {
+		cr.SetConditions(xpv1.Available())
+	}
 
 	return managed.ExternalObservation{
 		ResourceExists:    exist,
