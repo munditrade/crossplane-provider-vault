@@ -300,11 +300,11 @@ jobs:
 
       - name: Publish Artifacts
         if: github.ref == 'refs/heads/master'
-        run: make -j2 publish
+        run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
 
       - name: Promote Artifacts in S3 and Docker Hub
         if: github.ref == 'refs/heads/master'
         run: make -j2 promote
         env:
           BRANCH_NAME: master
-          CHANNEL: latest
+          CHANNEL: master
