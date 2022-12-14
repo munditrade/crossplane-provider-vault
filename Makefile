@@ -26,7 +26,7 @@ KIND_NODE_IMAGE_TAG ?= v1.23.4
 -include build/makelib/k8s_tools.mk
 
 # Setup Images
-DOCKER_REGISTRY ?= gcr.io/prj-mundi-infra-services
+DOCKER_REGISTRY ?= gcr.io/prj-mundi-dev-330421
 IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
 -include build/makelib/image.mk
 
