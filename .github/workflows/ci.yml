@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches:
+      - main
       - master
       - release-*
   pull_request: {}
@@ -10,15 +11,9 @@ on:
 
 env:
   # Common versions
-  GO_VERSION: '1.18'
+  GO_VERSION: '1.19'
   GOLANGCI_VERSION: 'v1.50'
   DOCKER_BUILDX_VERSION: 'v0.9.1'
-
-  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
-  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
-  # credentials have been provided before trying to run steps that need them.
-  DOCKER_USR: ${{ secrets.DOCKER_USR }}
-  AWS_USR: ${{ secrets.AWS_USR }}
 
 jobs:
   detect-noop:
@@ -77,9 +72,8 @@ jobs:
       # this action because it leaves 'annotations' (i.e. it comments on PRs to
       # point out linter violations).
       - name: Lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v2
         with:
-          working-directory: ${{ matrix.dir }}
           version: ${{ env.GOLANGCI_VERSION }}
           skip-go-installation: true
 
@@ -220,7 +214,6 @@ jobs:
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pkg-
-
       - name: Vendor Dependencies
         run: make vendor vendor.check
 
@@ -288,6 +281,8 @@ jobs:
       - name: Build Artifacts
         run: make -j2 build.all
         env:
+          # We're using docker buildx, which doesn't actually load the images it
+          # builds by default. Specifying --load does so.
           BUILD_ARGS: "--load"
 
       - name: Publish Artifacts to GitHub
@@ -304,11 +299,5 @@ jobs:
           password: ${{ secrets.GCR_CREDENTIAL_INFRA_SERVICES }}
 
       - name: Publish Artifacts
-        run: make -j2 publish
-
-      - name: Promote Artifacts
         if: github.ref == 'refs/heads/master'
-        run: make -j2 promote
-        env:
-          BRANCH_NAME: master
-          CHANNEL: master
+        run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
