@@ -29,7 +29,8 @@ VERSION=v1.0.0
 # Setup Images
 DOCKER_REGISTRY ?= gcr.io/prj-mundi-infra-services
 IMAGES = $(PROJECT_NAME) $(PROJECT_NAME)-controller
--include build/makelib/image.mk
+#-include build/makelib/image.mk
+-include makelib/image.mk
 
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
