@@ -21,7 +21,6 @@ GO111MODULE = on
 # kind-related versions
 KIND_VERSION ?= v0.12.0
 KIND_NODE_IMAGE_TAG ?= v1.23.4
-VERSION=v1.0.0
 
 # Setup Kubernetes tools
 -include build/makelib/k8s_tools.mk
