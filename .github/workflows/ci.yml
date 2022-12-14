@@ -303,11 +303,8 @@ jobs:
           username: _json_key
           password: ${{ secrets.GCR_CREDENTIAL_INFRA_SERVICES }}
 
-      - name: Publish init
-        run: make -j2 publish.init
-
       - name: Publish Artifacts
-        run: make -j2 publish.artifacts
+        run: make -j2 publish
 
       - name: Promote Artifacts
         if: github.ref == 'refs/heads/master'

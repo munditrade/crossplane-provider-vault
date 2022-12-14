@@ -2,6 +2,7 @@
 # Setup Project
 PROJECT_NAME := provider-secret
 PROJECT_REPO := github.com/munditrade/$(PROJECT_NAME)
+BUILD_REGISTRY := gcr.io/prj-mundi-infra-services
 
 PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk
