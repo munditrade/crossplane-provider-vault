@@ -6,7 +6,7 @@ include ../../../build/makelib/common.mk
 
 # ====================================================================================
 #  Options
-DOCKER_REGISTRY ?= gcr.io/prj-mundi-infra-services
+DOCKER_REGISTRY ?= gcr.io/prj-mundi-dev-330421/provider-secret-amd64
 IMAGE = $(BUILD_REGISTRY)/provider-secret-$(ARCH)
 OSBASEIMAGE = scratch
 include ../../../build/makelib/image.mk
