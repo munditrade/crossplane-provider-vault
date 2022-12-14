@@ -12,5 +12,16 @@ metadata:
 spec:
   controller:
     image: DOCKER_REGISTRY/provider-secret-controller-amd64:VERSION
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: provider-secret-configuration
+  annotations:
+    provider: gcp
+    registry: gcs
+spec:
+  package: DOCKER_REGISTRY/provider-secret-controller-amd64:VERSION
+  packagePullPolicy: Always
   packagePullSecrets:
     - name: gcp-gcs-creds
