@@ -307,4 +307,4 @@ jobs:
         run: make -j2 promote
         env:
           BRANCH_NAME: master
-          CHANNEL: master
+          CHANNEL: latest
