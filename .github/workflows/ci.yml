@@ -227,7 +227,7 @@ jobs:
       - name: Run E2E Tests
         run: make e2e USE_HELM3=true
 
-  semantic_release:
+  publish tag:
     if: github.ref == 'refs/heads/master'
     #needs: [unit-tests, e2e-tests]
     name: Create new tag
@@ -241,8 +241,9 @@ jobs:
         uses: amitsingh-007/next-release-tag@v2.2.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions-ecosystem/action-push-tag@v1
-        name: Create tag
+      - name: package-version-to-git-tag
+        uses: pkgdeps/git-tag-action@v2
         with:
-          tag: ${{ env.release_tag }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ env.release_tag }}
+          git_tag_prefix: "v"
