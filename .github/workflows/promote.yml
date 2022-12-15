@@ -1,24 +1,8 @@
-name: Create & Publish Container Image
+name: Promote
 on:
   push:
     tags:
-      - 'v**'
-  workflow_call:
-    inputs:
-      VAULT_KV_PATH:
-        required: true
-        type: string
-    secrets:
-      VAULT_ADDR:
-        required: true
-      VAULT_TOKEN:
-        required: true
-      NPM_TOKEN:
-        required: false
-      VPN_CONFIG:
-        required: true
-      VPN_PASS:
-        required: true
+      - 'v*.*.*'
 
 jobs:
   publish-artifacts:
