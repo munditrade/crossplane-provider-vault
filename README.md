@@ -1,5 +1,11 @@
 # provider-secret
 
+Prepare Env
+
+```
+$ make submodules
+```
+
 # Installation
 
 ```
