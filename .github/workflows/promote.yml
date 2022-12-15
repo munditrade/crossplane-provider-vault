@@ -2,7 +2,7 @@ name: Create & Publish Container Image
 on:
   push:
     tags:
-      - '*'
+      - 'v**'
   workflow_call:
     inputs:
       VAULT_KV_PATH:
