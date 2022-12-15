@@ -1,4 +1,4 @@
-apiVersion: meta.pkg.crossplane.io/v1alpha1
+apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-secret
@@ -10,5 +10,9 @@ metadata:
       A secret engine management provider
 
 spec:
-  controller:
-    image: DOCKER_REGISTRY/provider-secret-controller:VERSION
+  package: DOCKER_REGISTRY/provider-secret-controller:VERSION
+  revisionActivationPolicy: Automatic
+  controllerConfigRef:
+    name: provider-secret-config
+  packagePullSecrets:
+    - name: gcp-gcs-creds
