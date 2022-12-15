@@ -227,84 +227,50 @@ jobs:
       - name: Run E2E Tests
         run: make e2e USE_HELM3=true
 
-  publish-artifacts:
-    runs-on: ubuntu-22.04
-    needs: detect-noop
-    if: needs.detect-noop.outputs.noop != 'true'
-
+  semantic_release:
+    if: github.ref == 'refs/heads/master'
+    name: Create new semantic release
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
+      - uses: actions/checkout@v2.2.0
+
+      - name: Setup Vault Cli
+        uses: eLco/setup-vault@v1
         with:
-          platforms: all
+          version: '~1.9.2'
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v1
+      - name: Connect to VPN
+        uses: munditrade/action-connect_vpn@main
         with:
-          version: ${{ env.DOCKER_BUILDX_VERSION }}
-          install: true
+          vpn_config: ${{ secrets.VPN_CONFIG }}
+          vpn_pass: ${{ secrets.VPN_PASS }}
 
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Fetch History
-        run: git fetch --prune --unshallow
-
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Find the Go Build Cache
-        id: go
-        run: echo "::set-output name=cache::$(make go.cachedir)"
-
-      - name: Cache the Go Build Cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.go.outputs.cache }}
-          key: ${{ runner.os }}-build-publish-artifacts-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-build-publish-artifacts-
-
-      - name: Cache Go Dependencies
-        uses: actions/cache@v2
-        with:
-          path: .work/pkg
-          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-pkg-
-
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
-
-      - name: Build Artifacts
-        run: make -j2 build.all
+      - name: Vault Secrets to env
         env:
-          # We're using docker buildx, which doesn't actually load the images it
-          # builds by default. Specifying --load does so.
-          BUILD_ARGS: "--load"
+          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+        run: "vault kv get -format yaml -field=data ${{ inputs.VAULT_KV_PATH }}| sed 's/: /=/' > .env"
 
-      - name: Publish Artifacts to GitHub
-        uses: actions/upload-artifact@v2
+      - name: Prepare Env Variables
+        run: |
+          echo "" >> .env
+          cat .env >> $GITHUB_ENV
+      - uses: actions/setup-node@v2
         with:
-          name: output
-          path: _output/**
+          node-version: 14.x
 
-      - name: Login to GCR
-        uses: docker/login-action@v1
-        with:
-          registry: gcr.io
-          username: _json_key
-          password: ${{ secrets.GCR_CREDENTIAL_INFRA_SERVICES }}
-
-      - name: Publish Artifacts
-        if: github.ref == 'refs/heads/master'
-        run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
-
-      - name: Promote Artifacts in S3 and Docker Hub
-        if: github.ref == 'refs/heads/master'
-        run: make -j2 promote
+      - name: Cache node modules
+        uses: actions/cache@v2
         env:
-          BRANCH_NAME: master
-          CHANNEL: stable
+          cache-name: cache-node-modules
+        with:
+          node-version: 'lts/*'
+      - name: Install dependencies
+        run: npm ci
+      - name: Create new release
+        run: npx semantic-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

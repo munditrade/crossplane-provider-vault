@@ -1,28 +1,45 @@
-name: Promote
-
+name: Create & Publish Container Image
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+  workflow_call:
     inputs:
-      version:
-        description: 'Release version (e.g. v0.1.0)'
+      VAULT_KV_PATH:
         required: true
-      channel:
-        description: 'Release channel'
+        type: string
+    secrets:
+      VAULT_ADDR:
         required: true
-        default: 'stable'
-
-env:
-  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
-  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
-  # credentials have been provided before trying to run steps that need them.
-  DOCKER_USR: ${{ secrets.DOCKER_USR }}
-  AWS_USR: ${{ secrets.AWS_USR }}
+      VAULT_TOKEN:
+        required: true
+      NPM_TOKEN:
+        required: false
+      VPN_CONFIG:
+        required: true
+      VPN_PASS:
+        required: true
 
 jobs:
-  promote-artifacts:
+  publish-artifacts:
     runs-on: ubuntu-22.04
-
     steps:
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+
+      - name: Set Release version
+        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      - name: Print Release version
+        run: echo ${{ env.RELEASE_VERSION }}
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          version: ${{ env.DOCKER_BUILDX_VERSION }}
+          install: true
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -31,18 +48,51 @@ jobs:
       - name: Fetch History
         run: git fetch --prune --unshallow
 
-      - name: Login to Docker
-        uses: docker/login-action@v1
-        if: env.DOCKER_USR != ''
+      - name: Setup Go
+        uses: actions/setup-go@v2
         with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Promote Artifacts in S3 and Docker Hub
-        if: env.AWS_USR != '' && env.DOCKER_USR != ''
-        run: make -j2 promote BRANCH_NAME=${GITHUB_REF##*/}
+      - name: Find the Go Build Cache
+        id: go
+        run: echo "::set-output name=cache::$(make go.cachedir)"
+
+      - name: Cache the Go Build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-publish-artifacts-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-publish-artifacts-
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@v2
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      - name: Build Artifacts
+        run: make -j2 build.all
         env:
-          VERSION: ${{ github.event.inputs.version }}
-          CHANNEL: ${{ github.event.inputs.channel }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+          BUILD_ARGS: "--load"
+
+      - name: Publish Artifacts to GitHub
+        uses: actions/upload-artifact@v2
+        with:
+          name: output
+          path: _output/**
+
+      - name: Login to GCR
+        uses: docker/login-action@v1
+        with:
+          registry: gcr.io
+          username: _json_key
+          password: ${{ secrets.GCR_CREDENTIAL_INFRA_SERVICES }}
+
+      - name: Publish Artifacts
+        run: make -j2 publish
+        env:
+          VERSION: ${{ env.RELEASE_VERSION }}
