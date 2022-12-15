@@ -230,12 +230,17 @@ jobs:
   publish-artifacts:
     if: github.ref == 'refs/heads/master'
     #needs: [unit-tests, e2e-tests]
-    name: Create new tag
+    name: Publish Artifacts
     runs-on: ubuntu-22.04
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -244,6 +249,7 @@ jobs:
         uses: amitsingh-007/next-release-tag@v2.2.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: package-version-to-git-tag
         uses: pkgdeps/git-tag-action@v2
         with:
