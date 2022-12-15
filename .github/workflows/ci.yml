@@ -229,38 +229,15 @@ jobs:
 
   semantic_release:
     if: github.ref == 'refs/heads/master'
-    needs: [unit-tests, e2e-tests]
-    name: Create new semantic release
+    #needs: [unit-tests, e2e-tests]
+    name: Create new tag
     runs-on: ubuntu-latest
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2.2.0
-
-      - name: Setup Vault Cli
-        uses: eLco/setup-vault@v1
-        with:
-          version: '~1.9.2'
-
-      - name: Connect to VPN
-        uses: munditrade/action-connect_vpn@main
-        with:
-          vpn_config: ${{ secrets.VPN_CONFIG }}
-          vpn_pass: ${{ secrets.VPN_PASS }}
-
-      - name: Vault Secrets to env
-        env:
-          VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-        run: "vault kv get -format yaml -field=data ${{ inputs.VAULT_KV_PATH }}| sed 's/: /=/' > .env"
-
-      - name: Prepare Env Variables
-        run: |
-          echo "" >> .env
-          cat .env >> $GITHUB_ENV
-
-      - name: Generate release tag
-        uses: amitsingh-007/next-release-tag@v1.0.0
+      - name: Auto Generate Next Release Tag
+        uses: amitsingh-007/next-release-tag@v2.2.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
