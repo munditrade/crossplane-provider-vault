@@ -71,6 +71,12 @@ jobs:
           password: ${{ secrets.GCR_CREDENTIAL_INFRA_SERVICES }}
 
       - name: Publish Artifacts
-        run: make -j2 publish
+        run: make -j2 publish BRANCH_NAME=master
         env:
           VERSION: ${{ env.RELEASE_VERSION }}
+
+      - name: Promote Artifacts in S3 and Docker Hub
+        run: make -j2 promote
+        env:
+          BRANCH_NAME: master
+          CHANNEL: master
