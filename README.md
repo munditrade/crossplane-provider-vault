@@ -10,8 +10,8 @@ $ make submodules
 
 ```
 $ kubectl create secret generic secret-conn \
-  --from-literal=host=http://127.0.0.1 \
-  --from-literal=port=8200 \
+  --from-literal=host=http://{vault_host} \
+  --from-literal=port={vault_port} \ // Default 8200
   --from-literal=token={YOUR_VAULT_TOKEN}
 ```
 
