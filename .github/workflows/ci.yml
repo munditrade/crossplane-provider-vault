@@ -229,7 +229,7 @@ jobs:
 
   semantic_release:
     if: github.ref == 'refs/heads/master'
-    #needs: [unit-tests, e2e-tests]
+    needs: [unit-tests, e2e-tests]
     name: Create new tag
     runs-on: ubuntu-latest
     env:
@@ -241,10 +241,3 @@ jobs:
         uses: amitsingh-007/next-release-tag@v2.2.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.release_tag }}
