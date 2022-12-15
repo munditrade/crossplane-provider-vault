@@ -227,16 +227,19 @@ jobs:
       - name: Run E2E Tests
         run: make e2e USE_HELM3=true
 
-  publish-tag:
+  publish-artifacts:
     if: github.ref == 'refs/heads/master'
     #needs: [unit-tests, e2e-tests]
     name: Create new tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v2.2.0
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
       - name: Auto Generate Next Release Tag
         uses: amitsingh-007/next-release-tag@v2.2.0
         with:
@@ -249,31 +252,11 @@ jobs:
           github_repo: ${{ github.repository }}
           git_commit_sha: ${{ github.sha }}
 
-  publish-artifacts:
-    if: github.ref == 'refs/heads/master'
-    needs: [publish-tag]
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
-        with:
-          platforms: all
-
-      - name: Set Release version
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-      - name: Print Release version
-        run: echo ${{ env.RELEASE_VERSION }}
-
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v1
         with:
           version: ${{ env.DOCKER_BUILDX_VERSION }}
           install: true
-
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
 
       - name: Fetch History
         run: git fetch --prune --unshallow
@@ -308,7 +291,7 @@ jobs:
         run: make -j2 build.all
         env:
           BUILD_ARGS: "--load"
-          VERSION: ${{ env.RELEASE_VERSION }}
+          VERSION: ${{ env.release_tag }}
 
       - name: Login to GCR
         uses: docker/login-action@v1
@@ -318,12 +301,13 @@ jobs:
           password: ${{ secrets.GCR_CREDENTIAL_INFRA_SERVICES }}
 
       - name: Publish Artifacts
-        run: make -j2 publish BRANCH_NAME=${{ env.RELEASE_VERSION }}
+        run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
         env:
-          VERSION: ${{ env.RELEASE_VERSION }}
+          VERSION: ${{ env.release_tag }}
 
       - name: Promote Artifacts
         run: make -j2 promote
         env:
-          BRANCH_NAME: ${{ env.RELEASE_VERSION }}
+          BRANCH_NAME: master
           CHANNEL: master
+          VERSION: ${{ env.release_tag }}
