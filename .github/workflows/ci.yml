@@ -259,12 +259,8 @@ jobs:
         run: |
           echo "" >> .env
           cat .env >> $GITHUB_ENV
-      - uses: actions/setup-node@v2
+
+      - name: Generate release tag
+        uses: amitsingh-007/next-release-tag@v1.0.0
         with:
-          node-version: 14.x
-      - name: Install dependencies
-        run: npm ci
-      - name: Create new release
-        run: npx semantic-release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
