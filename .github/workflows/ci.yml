@@ -32,6 +32,7 @@ jobs:
 
 
   lint:
+    name: Lint
     runs-on: ubuntu-22.04
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
@@ -78,6 +79,7 @@ jobs:
           skip-go-installation: true
 
   check-diff:
+    name: Check Diff
     runs-on: ubuntu-22.04
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
@@ -118,6 +120,7 @@ jobs:
         run: make check-diff
 
   unit-tests:
+    name: Unit tests
     runs-on: ubuntu-22.04
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
@@ -167,6 +170,7 @@ jobs:
           file: _output/tests/linux_amd64/coverage.txt
 
   e2e-tests:
+    name: E2E Tests
     runs-on: ubuntu-22.04
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
