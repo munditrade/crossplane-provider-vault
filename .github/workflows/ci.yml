@@ -233,7 +233,7 @@ jobs:
 
   publish-artifacts:
     if: github.ref == 'refs/heads/master'
-    needs: [unit-tests, e2e-tests]
+    needs: [unit-tests, e2e-tests, check-diff]
     name: Publish Artifacts
     runs-on: ubuntu-22.04
     env:
