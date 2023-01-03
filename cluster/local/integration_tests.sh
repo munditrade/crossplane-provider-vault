@@ -225,19 +225,25 @@ echo "${PROVIDER_CONFIG_YAML}" | "${KUBECTL}" apply -f -
 echo_step "creating Vault Secret Path resources"
 "${KUBECTL}" apply -f ${projectdir}/examples/vault/engine.yaml
 "${KUBECTL}" apply -f ${projectdir}/examples/vault/secret_path.yaml
+"${KUBECTL}" apply -f ${projectdir}/examples/vault/policy.yaml
 
-echo_info "check if is ready"
+echo_info "check if the engine is ready"
 "${KUBECTL}" wait --timeout 2m --for=condition=ready -f ${projectdir}/examples/vault/engine.yaml
 echo_step_completed
 
-echo_info "check if is ready"
+echo_info "check if the secret path is ready"
 "${KUBECTL}" wait --timeout 2m --for=condition=ready -f ${projectdir}/examples/vault/secret_path.yaml
+echo_step_completed
+
+echo_info "check if the policies are ready"
+"${KUBECTL}" wait --timeout 2m --for=condition=ready -f ${projectdir}/examples/vault/policy.yaml
 echo_step_completed
 
 echo_step "uninstalling ${PROJECT_NAME}"
 
 "${KUBECTL}" delete -f ${projectdir}/examples/vault/secret_path.yaml
 "${KUBECTL}" delete -f ${projectdir}/examples/vault/engine.yaml
+"${KUBECTL}" delete -f ${projectdir}/examples/vault/policy.yaml
 echo "${PROVIDER_CONFIG_YAML}" | "${KUBECTL}" delete -f -
 echo "${INSTALL_YAML}" | "${KUBECTL}" delete -f -
 
