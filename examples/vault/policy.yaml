@@ -1,0 +1,11 @@
+apiVersion: vault.secret.crossplane.io/v1alpha1
+kind: Policy
+metadata:
+  name: test-policy
+spec:
+  forProvider:
+    rules:
+    - path: "test-policy/*"
+      capabilities:
+        - "read"
+        - "list"

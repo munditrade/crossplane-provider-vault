@@ -4,6 +4,11 @@ PROJECT_NAME := provider-secret
 PROJECT_REPO := github.com/munditrade/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
+
+SECRET_TOKEN="root"
+VAULT_PORT=8200
+
+
 -include build/makelib/common.mk
 
 # Setup Output
